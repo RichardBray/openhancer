@@ -54,7 +54,16 @@ const VALUE_FLAGS = new Set([...KNOWN_FLAGS].filter(f => f !== "--help" && f !==
 export function getDefaultOutput(inputPath: string): string {
   const ext = path.extname(inputPath);
   const base = inputPath.slice(0, -ext.length);
-  return `${base}_openhanced${ext}`;
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+  ].join("");
+  return `${base}_openhanced_${stamp}${ext}`;
 }
 
 function parseNum(value: string, flag: string, min: number, max: number): number {

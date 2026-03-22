@@ -47,15 +47,18 @@ describe("parseArgs", () => {
 });
 
 describe("getDefaultOutput", () => {
-  it("appends _openhanced before extension", () => {
-    expect(getDefaultOutput("video.mp4")).toBe("video_openhanced.mp4");
+  it("appends _openhanced with timestamp before extension", () => {
+    const result = getDefaultOutput("video.mp4");
+    expect(result).toMatch(/^video_openhanced_\d{14}\.mp4$/);
   });
 
   it("handles .mov files", () => {
-    expect(getDefaultOutput("clip.mov")).toBe("clip_openhanced.mov");
+    const result = getDefaultOutput("clip.mov");
+    expect(result).toMatch(/^clip_openhanced_\d{14}\.mov$/);
   });
 
   it("handles paths with directories", () => {
-    expect(getDefaultOutput("/path/to/video.mp4")).toBe("/path/to/video_openhanced.mp4");
+    const result = getDefaultOutput("/path/to/video.mp4");
+    expect(result).toMatch(/^\/path\/to\/video_openhanced_\d{14}\.mp4$/);
   });
 });
