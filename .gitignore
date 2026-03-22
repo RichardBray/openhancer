@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+openhancer
+oph
+
+# E2E test fixtures (generated, not committed)
+src/__tests__/e2e/fixtures/test.mp4
+src/__tests__/e2e/fixtures/test.png
+src/__tests__/e2e/fixtures/test.mov
+*_openhanced.*
