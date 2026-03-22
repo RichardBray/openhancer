@@ -1208,12 +1208,220 @@ git commit -m "feat: add CLI with argument parsing, validation, and main entrypo
 
 ---
 
-### Task 10: Integration test — full build and smoke test
+### Task 10: E2E tests — real FFmpeg execution
+
+**Files:**
+- Create: `src/__tests__/e2e/fixtures/generate-fixtures.sh`
+- Create: `src/__tests__/e2e/openhancer.e2e.test.ts`
+
+**Step 1: Create test fixture generator**
+
+Generate minimal test media files using FFmpeg (no binary fixtures in git):
+
+```bash
+#!/bin/bash
+# src/__tests__/e2e/fixtures/generate-fixtures.sh
+# Generates tiny test fixtures for e2e tests
+set -e
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 1-second 64x64 red-to-blue gradient video (tiny, fast to process)
+ffmpeg -y -f lavfi -i "color=c=red:s=64x64:d=1,format=yuv420p" \
+  -c:v libx264 -preset ultrafast -crf 28 \
+  "$DIR/test.mp4"
+
+# 64x64 solid red PNG image
+ffmpeg -y -f lavfi -i "color=c=red:s=64x64:d=1,format=rgb24" \
+  -frames:v 1 \
+  "$DIR/test.png"
+
+# 1-second 64x64 video as .mov
+ffmpeg -y -f lavfi -i "color=c=blue:s=64x64:d=1,format=yuv420p" \
+  -c:v libx264 -preset ultrafast -crf 28 \
+  "$DIR/test.mov"
+
+echo "Fixtures generated."
+```
+
+**Step 2: Write the e2e tests**
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { existsSync, unlinkSync } from "fs";
+import path from "path";
+
+const FIXTURES_DIR = path.join(import.meta.dir, "fixtures");
+const CLI_PATH = path.join(import.meta.dir, "../../../src/cli.ts");
+
+// Helper to run openhancer via bun
+async function runOpenhancer(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["bun", "run", CLI_PATH, ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+    cwd: FIXTURES_DIR,
+  });
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  const exitCode = await proc.exited;
+  return { exitCode, stdout, stderr };
+}
+
+// Clean up output files after tests
+function cleanup(files: string[]) {
+  for (const f of files) {
+    const p = path.join(FIXTURES_DIR, f);
+    if (existsSync(p)) unlinkSync(p);
+  }
+}
+
+describe("e2e: openhancer", () => {
+  beforeAll(async () => {
+    // Generate fixtures if missing
+    if (!existsSync(path.join(FIXTURES_DIR, "test.mp4"))) {
+      const proc = Bun.spawn(["bash", path.join(FIXTURES_DIR, "generate-fixtures.sh")], {
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      await proc.exited;
+    }
+  });
+
+  afterAll(() => {
+    cleanup([
+      "test_openhanced.mp4",
+      "test_openhanced.png",
+      "test_openhanced.mov",
+      "custom_output.mp4",
+    ]);
+  });
+
+  it("prints help with --help", async () => {
+    const { exitCode, stdout } = await runOpenhancer(["--help"]);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("openhancer <input>");
+    expect(stdout).toContain("--output");
+  });
+
+  it("exits with error on no input", async () => {
+    const { exitCode, stderr } = await runOpenhancer([]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("No input file");
+  });
+
+  it("exits with error on unknown flag", async () => {
+    const { exitCode, stderr } = await runOpenhancer(["test.mp4", "--bogus"]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("Unknown flag");
+  });
+
+  it("exits with error on out-of-range flag", async () => {
+    const { exitCode, stderr } = await runOpenhancer(["test.mp4", "--lift", "0.9"]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("must be between");
+  });
+
+  it("exits with error on missing input file", async () => {
+    const { exitCode, stderr } = await runOpenhancer(["nonexistent.mp4"]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("not found");
+  });
+
+  it("processes an image (png) with defaults", async () => {
+    cleanup(["test_openhanced.png"]);
+    const { exitCode, stdout, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.png"),
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("(image)");
+    expect(stdout).toContain("Done.");
+    expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.png"))).toBe(true);
+  });
+
+  it("processes a video (mp4) with defaults", async () => {
+    cleanup(["test_openhanced.mp4"]);
+    const { exitCode, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.mp4"),
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.mp4"))).toBe(true);
+  });
+
+  it("processes a .mov file", async () => {
+    cleanup(["test_openhanced.mov"]);
+    const { exitCode, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.mov"),
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.mov"))).toBe(true);
+  });
+
+  it("respects --output flag", async () => {
+    cleanup(["custom_output.mp4"]);
+    const outPath = path.join(FIXTURES_DIR, "custom_output.mp4");
+    const { exitCode, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.mp4"),
+      "-o", outPath,
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(existsSync(outPath)).toBe(true);
+  });
+
+  it("processes video with custom effect parameters", async () => {
+    cleanup(["test_openhanced.mp4"]);
+    const { exitCode, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.mp4"),
+      "--lift", "0.1",
+      "--crush", "0.08",
+      "--fade", "0.3",
+      "--halation-intensity", "0.8",
+      "--aberration", "0.5",
+      "--weave", "0.5",
+      "--preset", "fast",
+      "--crf", "28",
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.mp4"))).toBe(true);
+  });
+});
+```
+
+**Step 3: Run e2e tests**
+
+Run: `bun test src/__tests__/e2e/`
+Expected: All PASS (requires FFmpeg installed)
+
+**Step 4: Add `.gitignore` entry for fixture outputs**
+
+Add to project `.gitignore`:
+```
+# E2E test fixtures (generated, not committed)
+src/__tests__/e2e/fixtures/test.mp4
+src/__tests__/e2e/fixtures/test.png
+src/__tests__/e2e/fixtures/test.mov
+*_openhanced.*
+```
+
+**Step 5: Commit**
+
+```bash
+git add src/__tests__/e2e/ .gitignore
+git commit -m "test: add e2e tests with FFmpeg fixture generation"
+```
+
+---
+
+### Task 11: Build, symlink, and final smoke test
 
 **Files:**
 - No new files
 
-**Step 1: Run all unit tests**
+**Step 1: Run all tests (unit + e2e)**
 
 Run: `bun test`
 Expected: All tests PASS
@@ -1228,31 +1436,13 @@ Expected: Produces `openhancer` binary in project root
 Run: `./openhancer --help`
 Expected: Prints the full flag reference
 
-**Step 4: Smoke test with a real file (manual)**
-
-If FFmpeg is installed and a test video/image is available:
-
-```bash
-# Test with an image
-./openhancer test.jpg
-
-# Test with a video
-./openhancer test.mp4
-```
-
-Verify:
-- Output file is created at `test_openhanced.jpg` / `test_openhanced.mp4`
-- No FFmpeg errors
-- Progress bar renders for video
-- Image mode prints "Processing..." then "Done."
-
-**Step 5: Create oph symlink**
+**Step 4: Create oph symlink**
 
 ```bash
 ln -sf openhancer oph
 ```
 
-**Step 6: Commit**
+**Step 5: Commit**
 
 ```bash
 git add -A
@@ -1276,7 +1466,9 @@ Task 1 (scaffold)
        ↓
   Task 9 (cli) — depends on Task 8
        ↓
-  Task 10 (integration) — depends on Task 9
+  Task 10 (e2e tests) — depends on Task 9
+       ↓
+  Task 11 (build + smoke test) — depends on Task 10
 ```
 
-Tasks 2–7 can be executed in parallel after Task 1. Tasks 8–10 are sequential.
+Tasks 2–7 can be executed in parallel after Task 1. Tasks 8–11 are sequential.
