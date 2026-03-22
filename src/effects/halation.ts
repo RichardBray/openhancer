@@ -19,11 +19,10 @@ export function halationFilter(input: string, options: HalationOptions): FilterR
   const blueLevel = warmth >= 0 ? (1 - w * 0.4).toFixed(4) : "1.0000";
 
   const fragment = [
-    `[${input}]split=2[hal_orig][hal_glowsrc];`,
-    `[hal_glowsrc]curves=r='0/0 ${threshLow}/0 ${thresh}/1 1/1':g='0/0 ${threshLow}/0 ${thresh}/1 1/1':b='0/0 ${threshLow}/0 ${thresh}/1 1/1'[hal_highlights];`,
-    `[hal_highlights]curves=r='0/0 1/${redLevel}':b='0/0 1/${blueLevel}'[hal_tinted];`,
+    `[${input}]format=gbrp,split=2[hal_orig][hal_glowsrc];`,
+    `[hal_glowsrc]curves=r='0/0 ${threshLow}/0 ${thresh}/1 1/1':g='0/0 ${threshLow}/0 ${thresh}/1 1/1':b='0/0 ${threshLow}/0 ${thresh}/1 1/1',hue=s=0,curves=r='0/0 1/${redLevel}':b='0/0 1/${blueLevel}'[hal_tinted];`,
     `[hal_tinted]gblur=sigma=${radius}[hal_blurred];`,
-    `[hal_orig][hal_blurred]blend=all_mode=screen:all_opacity=${intensity.toFixed(4)}[halation_out]`,
+    `[hal_orig][hal_blurred]blend=all_mode=screen:all_opacity=${intensity.toFixed(4)},format=yuv444p[halation_out]`,
   ].join("");
 
   return { fragment, output: "halation_out" };
