@@ -28,7 +28,7 @@ openhancer <input> [options]
   --halation-intensity  <0-1>    (default: 0.6)
   --halation-radius     <px>     (default: 51)
   --halation-threshold  <0-255>  (default: 180)
-  --halation-warmth     <0-1>    (default: 0.7)
+  --halation-warmth     <-1–1>   (default: 0.3)  -1=cool, 0=neutral, 1=warm
 
   Chromatic Aberration:
   --aberration  <0-1>   (default: 0.3)
@@ -119,7 +119,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
           case "--halation-intensity": overrides["halation-intensity"] = parseNum(val, "--halation-intensity", 0, 1); break;
           case "--halation-radius": overrides["halation-radius"] = parseNum(val, "--halation-radius", 1, 999); break;
           case "--halation-threshold": overrides["halation-threshold"] = parseNum(val, "--halation-threshold", 0, 255); break;
-          case "--halation-warmth": overrides["halation-warmth"] = parseNum(val, "--halation-warmth", 0, 1); break;
+          case "--halation-warmth": overrides["halation-warmth"] = parseNum(val, "--halation-warmth", -1, 1); break;
           case "--aberration": overrides["aberration"] = parseNum(val, "--aberration", 0, 1); break;
           case "--weave": overrides["weave"] = parseNum(val, "--weave", 0, 1); break;
         }

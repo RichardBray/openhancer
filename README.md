@@ -76,7 +76,7 @@ openhancer video.mp4 --preset heavy --aberration 0.2
 | `--halation-intensity` | 0–1 | 0.6 | Glow intensity |
 | `--halation-radius` | 1–999 | 51 | Glow blur radius (px) |
 | `--halation-threshold` | 0–255 | 180 | Highlight threshold |
-| `--halation-warmth` | 0–1 | 0.7 | Glow warmth |
+| `--halation-warmth` | -1–1 | 0.3 | Glow tint: -1=cool, 0=neutral, 1=warm |
 | `--aberration` | 0–1 | 0.3 | Chromatic aberration strength |
 | `--weave` | 0–1 | 0.3 | Gate weave strength |
 
