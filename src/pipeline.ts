@@ -60,7 +60,7 @@ export async function runPipeline(
   } else {
     args.push(
       "-c:v", "libx264",
-      "-preset", options.preset,
+      "-preset", options.encodePreset,
       "-crf", String(options.crf),
       "-progress", "pipe:1",
       "-nostats",

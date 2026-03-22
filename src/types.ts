@@ -29,7 +29,7 @@ export interface WeaveOptions {
 export interface FilmOptions {
   input: string;
   output: string;
-  preset: "fast" | "medium" | "slow";
+  encodePreset: "fast" | "medium" | "slow";
   crf: number;
   grade: GradeOptions;
   halation: HalationOptions;

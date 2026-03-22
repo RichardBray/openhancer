@@ -132,7 +132,7 @@ describe("e2e: openhancer", () => {
       "--halation-intensity", "0.8",
       "--aberration", "0.5",
       "--weave", "0.5",
-      "--preset", "fast",
+      "--encode-preset", "fast",
       "--crf", "28",
     ]);
     if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);

@@ -1,7 +1,9 @@
 import { existsSync } from "fs";
 import { probe } from "./probe";
 import { runPipeline } from "./pipeline";
-import type { FilmOptions, GradeOptions, HalationOptions, AberrationOptions, WeaveOptions } from "./types";
+import { applyPreset } from "./presets";
+import type { FilmOptions } from "./types";
+import type { PresetData } from "./presets";
 import path from "path";
 
 const HELP_TEXT = `
@@ -9,8 +11,11 @@ openhancer <input> [options]
 
   Input/Output:
   --output, -o <path>       Output path (default: <input>_openhanced.<ext>)
-  --preset     <string>     FFmpeg preset: fast/medium/slow (default: medium)
+  --encode-preset <string>  FFmpeg preset: fast/medium/slow (default: medium)
   --crf        <0-51>       Quality — lower is better (default: 18)
+
+  Preset:
+  --preset     <name>       Load a preset file (default: "default")
 
   Colour Grade:
   --lift          <0-0.15>  Black lift amount (default: 0.05)
@@ -36,7 +41,7 @@ openhancer <input> [options]
 `.trim();
 
 const KNOWN_FLAGS = new Set([
-  "--output", "-o", "--preset", "--crf",
+  "--output", "-o", "--encode-preset", "--crf", "--preset",
   "--lift", "--crush", "--fade", "--shadow-tint", "--highlight-tint",
   "--halation-intensity", "--halation-radius", "--halation-threshold", "--halation-warmth",
   "--aberration", "--weave",
@@ -72,27 +77,11 @@ interface ParsedArgs extends FilmOptions {
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
-  const grade: GradeOptions = {
-    liftBlacks: 0.05,
-    crushWhites: 0.04,
-    shadowTint: "warm",
-    highlightTint: "cool",
-    fade: 0.15,
-  };
-  const halation: HalationOptions = {
-    intensity: 0.6,
-    radius: 51,
-    threshold: 180,
-    warmth: 0.7,
-  };
-  const aberration: AberrationOptions = { strength: 0.3 };
-  const weave: WeaveOptions = { strength: 0.3 };
-
   let input = "";
   let output = "";
-  let preset: "fast" | "medium" | "slow" = "medium";
-  let crf = 18;
   let help = false;
+  let presetName = "default";
+  const overrides: PresetData = {};
 
   let i = 0;
   while (i < argv.length) {
@@ -115,23 +104,24 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
         switch (arg) {
           case "--output": case "-o": output = val; break;
-          case "--preset":
+          case "--preset": presetName = val; break;
+          case "--encode-preset":
             if (val !== "fast" && val !== "medium" && val !== "slow") {
-              throw new Error(`--preset must be fast, medium, or slow, got ${val}`);
+              throw new Error(`--encode-preset must be fast, medium, or slow, got ${val}`);
             }
-            preset = val; break;
-          case "--crf": crf = parseNum(val, "--crf", 0, 51); break;
-          case "--lift": grade.liftBlacks = parseNum(val, "--lift", 0, 0.15); break;
-          case "--crush": grade.crushWhites = parseNum(val, "--crush", 0, 0.15); break;
-          case "--fade": grade.fade = parseNum(val, "--fade", 0, 1); break;
-          case "--shadow-tint": grade.shadowTint = parseTint(val, "--shadow-tint"); break;
-          case "--highlight-tint": grade.highlightTint = parseTint(val, "--highlight-tint"); break;
-          case "--halation-intensity": halation.intensity = parseNum(val, "--halation-intensity", 0, 1); break;
-          case "--halation-radius": halation.radius = parseNum(val, "--halation-radius", 1, 999); break;
-          case "--halation-threshold": halation.threshold = parseNum(val, "--halation-threshold", 0, 255); break;
-          case "--halation-warmth": halation.warmth = parseNum(val, "--halation-warmth", 0, 1); break;
-          case "--aberration": aberration.strength = parseNum(val, "--aberration", 0, 1); break;
-          case "--weave": weave.strength = parseNum(val, "--weave", 0, 1); break;
+            overrides["encode-preset"] = val; break;
+          case "--crf": overrides["crf"] = parseNum(val, "--crf", 0, 51); break;
+          case "--lift": overrides["lift"] = parseNum(val, "--lift", 0, 0.15); break;
+          case "--crush": overrides["crush"] = parseNum(val, "--crush", 0, 0.15); break;
+          case "--fade": overrides["fade"] = parseNum(val, "--fade", 0, 1); break;
+          case "--shadow-tint": overrides["shadow-tint"] = parseTint(val, "--shadow-tint"); break;
+          case "--highlight-tint": overrides["highlight-tint"] = parseTint(val, "--highlight-tint"); break;
+          case "--halation-intensity": overrides["halation-intensity"] = parseNum(val, "--halation-intensity", 0, 1); break;
+          case "--halation-radius": overrides["halation-radius"] = parseNum(val, "--halation-radius", 1, 999); break;
+          case "--halation-threshold": overrides["halation-threshold"] = parseNum(val, "--halation-threshold", 0, 255); break;
+          case "--halation-warmth": overrides["halation-warmth"] = parseNum(val, "--halation-warmth", 0, 1); break;
+          case "--aberration": overrides["aberration"] = parseNum(val, "--aberration", 0, 1); break;
+          case "--weave": overrides["weave"] = parseNum(val, "--weave", 0, 1); break;
         }
         i += 2;
         continue;
@@ -156,7 +146,19 @@ export function parseArgs(argv: string[]): ParsedArgs {
     output = getDefaultOutput(input);
   }
 
-  return { input, output, preset, crf, grade, halation, aberration, weave, help };
+  const effectOpts = applyPreset(presetName, overrides);
+
+  return {
+    input,
+    output,
+    encodePreset: effectOpts.preset,
+    crf: effectOpts.crf,
+    grade: effectOpts.grade,
+    halation: effectOpts.halation,
+    aberration: effectOpts.aberration,
+    weave: effectOpts.weave,
+    help,
+  };
 }
 
 async function checkDependency(name: string): Promise<void> {
