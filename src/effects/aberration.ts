@@ -1,10 +1,13 @@
 import type { FilterResult, AberrationOptions } from "../types";
 
 export function aberrationFilter(input: string, options: AberrationOptions): FilterResult {
-  const offset = options.strength * 0.02;
+  if (!options.enabled) {
+    return { fragment: `[${input}]null[ab_out]`, output: "ab_out" };
+  }
+
+  const offset = options.amount * 0.02;
 
   if (offset === 0) {
-    // No aberration — pass through with format conversion round-trip
     const fragment = `[${input}]format=gbrp,format=yuv444p[ab_out]`;
     return { fragment, output: "ab_out" };
   }
