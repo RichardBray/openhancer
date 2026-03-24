@@ -15,6 +15,6 @@ export function vignetteFilter(input: string, options: VignetteOptions): FilterR
   // Map to aspect ratio of the vignette ellipse
   const aspect = (1 - size * 0.5).toFixed(4);
 
-  const fragment = `[${input}]vignette=angle=${angle}:x0=iw/2:y0=ih/2:aspect=${aspect}[vignette_out]`;
+  const fragment = `[${input}]vignette=angle=${angle}:aspect=${aspect}[vignette_out]`;
   return { fragment, output: "vignette_out" };
 }

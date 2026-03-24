@@ -52,6 +52,8 @@ describe("e2e: openhancer", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("openhancer <input>");
     expect(stdout).toContain("--output");
+    expect(stdout).toContain("--bloom-amount");
+    expect(stdout).toContain("--grain-amount");
   });
 
   it("exits with error on no input", async () => {
@@ -67,7 +69,7 @@ describe("e2e: openhancer", () => {
   });
 
   it("exits with error on out-of-range flag", async () => {
-    const { exitCode, stderr } = await runOpenhancer(["test.mp4", "--lift", "0.9"]);
+    const { exitCode, stderr } = await runOpenhancer(["test.mp4", "--exposure", "10"]);
     expect(exitCode).not.toBe(0);
     expect(stderr).toContain("must be between");
   });
@@ -126,17 +128,44 @@ describe("e2e: openhancer", () => {
     cleanup(["test_openhanced.mp4"]);
     const { exitCode, stderr } = await runOpenhancer([
       path.join(FIXTURES_DIR, "test.mp4"),
-      "--lift", "0.1",
-      "--crush", "0.08",
+      "--exposure", "0.1",
+      "--contrast", "1.2",
       "--fade", "0.3",
-      "--halation-intensity", "0.8",
+      "--halation-amount", "0.5",
       "--aberration", "0.5",
-      "--weave", "0.5",
+      "--bloom-amount", "0.3",
+      "--grain-amount", "0.2",
+      "--vignette-amount", "0.4",
+      "--camera-shake-amount", "0.3",
       "--preset", "fast",
       "--crf", "28",
     ]);
     if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
     expect(exitCode).toBe(0);
     expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.mp4"))).toBe(true);
+  });
+
+  it("processes with disabled effects via --no flags", async () => {
+    cleanup(["test_openhanced.png"]);
+    const { exitCode, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.png"),
+      "--no-halation",
+      "--no-bloom",
+      "--no-grain",
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.png"))).toBe(true);
+  });
+
+  it("processes with global blend", async () => {
+    cleanup(["test_openhanced.png"]);
+    const { exitCode, stderr } = await runOpenhancer([
+      path.join(FIXTURES_DIR, "test.png"),
+      "--blend", "0.5",
+    ]);
+    if (exitCode !== 0) console.error("FFmpeg stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(existsSync(path.join(FIXTURES_DIR, "test_openhanced.png"))).toBe(true);
   });
 });
