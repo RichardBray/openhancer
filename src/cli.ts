@@ -102,6 +102,10 @@ const BOOLEAN_FLAGS = new Set([
   "--halation-highlights-only", "--split-tone-protect-neutrals",
 ]);
 
+export function isSubcommand(args: string[]): boolean {
+  return args[0] === "ui";
+}
+
 export function getDefaultOutput(inputPath: string): string {
   const ext = path.extname(inputPath);
   const base = inputPath.slice(0, -ext.length);
@@ -257,6 +261,14 @@ async function checkDependency(name: string): Promise<void> {
 
 async function main() {
   const args = process.argv.slice(2);
+
+  if (isSubcommand(args)) {
+    const { startUI } = await import("./ui/server");
+    const portIdx = args.indexOf("--port");
+    const port = portIdx !== -1 ? parseInt(args[portIdx + 1], 10) : 4800;
+    await startUI(port);
+    return;
+  }
 
   let parsed: ParsedArgs;
   try {

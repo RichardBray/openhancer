@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { parseArgs, getDefaultOutput } from "../cli";
+import { parseArgs, getDefaultOutput, isSubcommand } from "../cli";
 
 describe("parseArgs", () => {
   it("parses input file as first positional arg", () => {
@@ -80,6 +80,15 @@ describe("parseArgs", () => {
   it("detects --help flag", () => {
     const result = parseArgs(["--help"]);
     expect(result.help).toBe(true);
+  });
+});
+
+describe("subcommand routing", () => {
+  it("isSubcommand detects ui command", () => {
+    expect(isSubcommand(["ui"])).toBe(true);
+    expect(isSubcommand(["ui", "--port", "3000"])).toBe(true);
+    expect(isSubcommand(["video.mp4"])).toBe(false);
+    expect(isSubcommand(["--help"])).toBe(false);
   });
 });
 
