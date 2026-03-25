@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/cli.ts",
-    "build": "bun build src/cli.ts --compile --outfile openhancer",
+    "build": "bun run build:ui && bun build src/cli.ts --compile --outfile openhancer",
     "build:ui": "bun run scripts/build-ui.ts",
     "test": "bun test"
   },
