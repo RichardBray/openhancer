@@ -11,3 +11,6 @@ src/__tests__/e2e/fixtures/test.mp4
 src/__tests__/e2e/fixtures/test.png
 src/__tests__/e2e/fixtures/test.mov
 *_openhanced.*
+
+# Worktrees
+.worktrees/
