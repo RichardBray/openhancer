@@ -28,7 +28,7 @@ describe("halationFilter", () => {
 
   it("applies highlight threshold when highlightsOnly is true", () => {
     const result = halationFilter("color_out", { ...defaults, highlightsOnly: true });
-    expect(result.fragment).toContain("curves=");
+    expect(result.fragment).toContain("geq=");
   });
 
   it("skips highlight threshold when highlightsOnly is false", () => {
