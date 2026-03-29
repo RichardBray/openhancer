@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import { probe } from "./probe";
-import { applyPreset } from "./presets";
+import { applyPreset, loadPreset } from "./presets";
 import type { PresetData } from "./presets";
 import type { FilmOptions } from "./types";
+import { runGpuExport } from "./pipeline";
 import path from "node:path";
 
 const HELP_TEXT = `
@@ -121,6 +122,7 @@ function parseNum(value: string, flag: string, min: number, max: number): number
 
 interface ParsedArgs extends FilmOptions {
   help: boolean;
+  params: PresetData;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -230,6 +232,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
 
   const effectOpts = applyPreset(presetName, overrides);
+  const presetData = loadPreset(presetName);
+  const params: PresetData = { ...presetData, ...overrides };
 
   return {
     input,
@@ -245,6 +249,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     vignette: effectOpts.vignette,
     splitTone: effectOpts.splitTone,
     cameraShake: effectOpts.cameraShake,
+    params,
     help,
   };
 }
@@ -294,7 +299,33 @@ async function main() {
   console.log(`Input:  ${parsed.input}${probeResult.isImage ? " (image)" : ""}`);
   console.log(`Output: ${parsed.output}`);
 
-  await runPipeline(parsed, probeResult);
+  if (probeResult.isImage) {
+    process.stdout.write("Processing...\n");
+    const { createHeadlessRenderer } = await import("./gpu/headless-renderer");
+    const renderer = await createHeadlessRenderer();
+    try {
+      await renderer.init(probeResult.width!, probeResult.height!);
+      const decodeProc = Bun.spawn([
+        "ffmpeg", "-i", parsed.input,
+        "-f", "rawvideo", "-pix_fmt", "rgba",
+        "-v", "quiet",
+        "pipe:1",
+      ], { stdout: "pipe", stderr: "pipe" });
+      const rawBytes = new Uint8Array(await new Response(decodeProc.stdout).arrayBuffer());
+      await decodeProc.exited;
+      const rendered = await renderer.renderFrame(rawBytes, probeResult.width!, probeResult.height!, parsed.params);
+      await Bun.write(parsed.output, rendered);
+    } finally {
+      await renderer.close();
+    }
+    console.log("Done.");
+  } else {
+    await runGpuExport(parsed.input, parsed.output, parsed.params, probeResult, (ratio) => {
+      const pct = Math.round(ratio * 100);
+      process.stdout.write(`\rProcessing... ${pct}%`);
+    });
+    process.stdout.write("\n");
+  }
 }
 
 if (import.meta.main) {
