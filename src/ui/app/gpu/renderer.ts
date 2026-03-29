@@ -4,7 +4,7 @@ import {
   SPLIT_TONE_FRAG, CAMERA_SHAKE_FRAG,
 } from "./shaders";
 import { createFullscreenPipeline, createTexture, runPass } from "./passes";
-import { getSplitToneTintValues } from "../../../effects/splitToneMath";
+import { getSplitToneTintValues } from "./splitToneMath";
 
 export interface PreviewParams {
   [key: string]: string | number | boolean;
