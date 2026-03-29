@@ -12,6 +12,7 @@ export interface PreviewParams {
 
 export interface Renderer {
   setSource(source: HTMLVideoElement | HTMLImageElement): void;
+  setSourceFromBuffer(data: Uint8Array, width: number, height: number): void;
   setParams(params: PreviewParams): void;
   renderFrame(): void;
   destroy(): void;
@@ -112,6 +113,7 @@ export async function createRenderer(canvas: HTMLCanvasElement, init: RendererIn
   const bloomBlendUB = createUniformBuffer(device, 16);
 
   let source: HTMLVideoElement | HTMLImageElement | null = null;
+  let bufferSource: { data: Uint8Array; width: number; height: number } | null = null;
   let params: PreviewParams = {};
   let frameCount = 0;
 
@@ -138,13 +140,26 @@ export async function createRenderer(canvas: HTMLCanvasElement, init: RendererIn
     });
   }
 
+  function setSourceFromBuffer(data: Uint8Array, width: number, height: number): void {
+    bufferSource = { data, width, height };
+    source = null;
+  }
+
   function copySourceToTexture() {
-    if (!source) return;
-    device.queue.copyExternalImageToTexture(
-      { source: source as HTMLVideoElement | HTMLImageElement },
-      { texture: srcTex },
-      { width: sourceWidth, height: sourceHeight },
-    );
+    if (bufferSource) {
+      device.queue.writeTexture(
+        { texture: srcTex },
+        bufferSource.data,
+        { bytesPerRow: bufferSource.width * 4, rowsPerImage: bufferSource.height },
+        { width: bufferSource.width, height: bufferSource.height },
+      );
+    } else if (source) {
+      device.queue.copyExternalImageToTexture(
+        { source: source as HTMLVideoElement | HTMLImageElement },
+        { texture: srcTex },
+        { width: sourceWidth, height: sourceHeight },
+      );
+    }
   }
 
   function num(key: string, fallback: number): number {
@@ -158,7 +173,7 @@ export async function createRenderer(canvas: HTMLCanvasElement, init: RendererIn
   }
 
   function renderFrame() {
-    if (!source) return;
+    if (!source && !bufferSource) return;
     copySourceToTexture();
     frameCount++;
 
@@ -360,7 +375,9 @@ export async function createRenderer(canvas: HTMLCanvasElement, init: RendererIn
   return {
     setSource(s: HTMLVideoElement | HTMLImageElement) {
       source = s;
+      bufferSource = null;
     },
+    setSourceFromBuffer,
     setParams(p: PreviewParams) {
       params = p;
     },
