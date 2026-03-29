@@ -85,4 +85,7 @@ export interface FilmOptions {
 export interface ProbeResult {
   duration: number | null;
   isImage: boolean;
+  width: number | null;
+  height: number | null;
+  fps: number | null;
 }
