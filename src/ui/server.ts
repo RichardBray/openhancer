@@ -1,7 +1,7 @@
 import { EFFECT_SCHEMA } from "../schema";
-import { loadPreset, applyPreset } from "../presets";
+import { loadPreset } from "../presets";
 import type { PresetData } from "../presets";
-import { runPipelineWithProgress } from "../pipeline";
+import { runGpuExport } from "../pipeline";
 import { probe } from "../probe";
 import { join } from "node:path";
 import { existsSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
@@ -74,17 +74,22 @@ export function createServer(port: number) {
         const inputPath = join(tempDir, file.name);
         await Bun.write(inputPath, file);
 
-        const ext = file.name.includes(".") ? file.name.split(".").pop() : "mp4";
-        const outputPath = join(tempDir, `export_${Date.now()}.${ext}`);
-        const effectOpts = applyPreset("default", params);
         const probeResult = await probe(inputPath);
+
+        if (probeResult.isImage) {
+          return new Response("Image export is handled client-side", { status: 400 });
+        }
+
+        const outputPath = join(tempDir, `export_${Date.now()}.mp4`);
 
         const stream = new ReadableStream({
           async start(controller) {
             const encoder = new TextEncoder();
             try {
-              await runPipelineWithProgress(
-                { ...effectOpts, input: inputPath, output: outputPath },
+              await runGpuExport(
+                inputPath,
+                outputPath,
+                params as Record<string, unknown>,
                 probeResult,
                 (ratio) => {
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ progress: ratio })}\n\n`));
