@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { probe } from "./probe";
-import { runPipeline } from "./pipeline";
 import { applyPreset } from "./presets";
 import type { PresetData } from "./presets";
 import type { FilmOptions } from "./types";

@@ -1,8 +1,3 @@
-export interface FilterResult {
-  fragment: string;
-  output: string;
-}
-
 export interface ColorSettingsOptions {
   enabled: boolean;
   exposure: number;
