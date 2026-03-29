@@ -10,9 +10,14 @@ export function App() {
   const { file, objectUrl, isVideo, upload } = useUpload();
   const [params, setParams] = useState<PreviewParams>({});
   const rendererRef = useRef<Renderer | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const handleRendererReady = useCallback((renderer: Renderer) => {
     rendererRef.current = renderer;
+  }, []);
+
+  const handleCanvasReady = useCallback((canvas: HTMLCanvasElement) => {
+    canvasRef.current = canvas;
   }, []);
 
   const handleParamChange = useCallback((key: string, value: number | string | boolean) => {
@@ -46,11 +51,12 @@ export function App() {
             isVideo={isVideo}
             params={params}
             onRendererReady={handleRendererReady}
+            onCanvasReady={handleCanvasReady}
           />
         </div>
         <div style={{ width: 320, borderLeft: "1px solid #1a1a1a", overflowY: "auto", padding: 16 }}>
           <ControlsPanel values={params} onChange={handleParamChange} onBatchChange={handleBatchChange} />
-          {file && <RenderBar file={file} params={params} />}
+          {file && <RenderBar file={file} params={params} canvas={canvasRef.current} isVideo={isVideo} />}
         </div>
       </div>
     </div>

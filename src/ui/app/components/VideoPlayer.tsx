@@ -7,9 +7,10 @@ interface Props {
   isVideo: boolean;
   params: PreviewParams;
   onRendererReady: (renderer: Renderer) => void;
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
 }
 
-export function VideoPlayer({ src, isVideo, params, onRendererReady }: Props) {
+export function VideoPlayer({ src, isVideo, params, onRendererReady, onCanvasReady }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -87,6 +88,12 @@ export function VideoPlayer({ src, isVideo, params, onRendererReady }: Props) {
       rendererRef.current = null;
     };
   }, [src, isVideo]);
+
+  useEffect(() => {
+    if (canvasRef.current && onCanvasReady) {
+      onCanvasReady(canvasRef.current);
+    }
+  }, [onCanvasReady]);
 
   useEffect(() => {
     if (rendererRef.current) {

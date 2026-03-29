@@ -3,15 +3,30 @@ import { useState, useCallback } from "react";
 interface Props {
   file: File;
   params: Record<string, string | number | boolean>;
+  canvas: HTMLCanvasElement | null;
+  isVideo: boolean;
 }
 
 type ExportState = "idle" | "uploading" | "rendering" | "done" | "error";
 
-export function RenderBar({ file, params }: Props) {
+export function RenderBar({ file, params, canvas, isVideo }: Props) {
   const [state, setState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const downloadImage = useCallback(() => {
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name.replace(/\.[^.]+$/, "_openhanced.png");
+      a.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }, [canvas, file.name]);
 
   const startExport = useCallback(async () => {
     setState("uploading");
@@ -69,13 +84,13 @@ export function RenderBar({ file, params }: Props) {
     <div style={{ borderTop: "1px solid #1a1a1a", paddingTop: 12, marginTop: 12 }}>
       {state === "idle" && (
         <button
-          onClick={startExport}
+          onClick={isVideo ? startExport : downloadImage}
           style={{
             width: "100%", padding: "8px 16px", background: "#2563eb", color: "#fff",
             border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer",
           }}
         >
-          Export
+          {isVideo ? "Export" : "Download"}
         </button>
       )}
 
